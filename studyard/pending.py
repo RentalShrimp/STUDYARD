@@ -5,6 +5,7 @@ from pathlib import Path
 
 from studyard.naming import resumo_stem
 from studyard.session import HEADER_END, SessionFiles
+from studyard.whisper_service import transcribe_wav_path
 
 
 def _stem_from_pending(name: str) -> str | None:
@@ -84,7 +85,7 @@ def scan_pendings(output_dir: Path) -> list[dict]:
     return items
 
 
-def process_pending_item(item: dict, api) -> None:
+def process_pending_item(item: dict, api, transcribe_wav=None) -> None:
     folder: Path = item["folder"]
     stem: str = item["stem"]
     save_audio = bool(item["save_audio"])
@@ -93,7 +94,8 @@ def process_pending_item(item: dict, api) -> None:
         s.create()
     if "transcribe" in item["need"]:
         wav_path: Path = item["wav_path"]
-        text = api.transcribe(wav_path.read_bytes())
+        asr = transcribe_wav or transcribe_wav_path
+        text = asr(wav_path)
         s.replace_body(text)
     summary = api.summarize(s.read_transcript_body())
     s.write_summary(summary)

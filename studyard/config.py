@@ -20,6 +20,7 @@ class Config:
     chunk_seconds: int
     save_audio: bool
     port: int
+    whisper_model: str = "base"
 
 
 def load_config(path: Path | None = None) -> Config:
@@ -39,6 +40,7 @@ def load_config(path: Path | None = None) -> Config:
         chunk_seconds=int(raw.get("chunk_seconds", 25)),
         save_audio=bool(raw.get("save_audio", False)),
         port=int(raw.get("port", 8765)),
+        whisper_model=str(raw.get("whisper_model", "base")),
     )
 
 

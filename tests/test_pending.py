@@ -81,7 +81,7 @@ def test_process_pending_transcribe_and_summarize(tmp_path: Path):
     s.write_pending(["transcribe", "summarize"])
     items = scan_pendings(tmp_path)
     api = FakeApi()
-    process_pending_item(items[0], api)
+    process_pending_item(items[0], api, transcribe_wav=lambda p: api.transcribe(p.read_bytes()))
     assert "texto do wav" in s.read_transcript_body()
     assert fail_marker(3) not in s.read_transcript_body()
     assert s.resumo_path.exists()

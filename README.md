@@ -6,12 +6,12 @@ App local no Windows: grava a aula (microfone e/ou áudio do sistema), escreve a
 
 - Windows 10+
 - Python 3.11+
-- Chave de uma API compatível com OpenAI (transcrição + chat)
+- Chave de uma API compatível com OpenAI **só para o resumo** (a transcrição é local com faster-whisper, modelo `base`, português)
 
 ## Configuração
 
 1. Copie `config.example.json` para `config.json` na raiz deste repositório.
-2. Preencha `api_key` e, se não for OpenAI, `api_base_url`, `transcription_model` e `summary_model`.
+2. Preencha `api_key` e, se não for OpenAI, `api_base_url` e `summary_model`. A transcrição usa `whisper_model` (padrão `base`) via faster-whisper na CPU.
 3. `output_dir` padrão: `D:\IA\STUDYARD\transcricao` (pastas `aaaa-mm-dd` por dia de aula).
 
 Não versione `config.json` (já está no `.gitignore`).
@@ -34,7 +34,7 @@ Arquivos gerados:
 - `transcricao\aaaa-mm-dd\aaaa-mm-dd_resumo.md` — resumo ao parar
 - Segunda aula no mesmo dia: `..._aula-2.md` / `..._resumo-2.md`
 
-Áudio WAV só permanece se você marcar “Salvar áudio”. Se a rede cair, o WAV é guardado para **Processar pendentes**.
+Áudio WAV só permanece se você marcar “Salvar áudio”. Se o resumo (API) falhar, o WAV é guardado para **Processar pendentes**. A transcrição ao vivo não depende da rede.
 
 ## Testes
 

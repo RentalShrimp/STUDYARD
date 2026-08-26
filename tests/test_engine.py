@@ -6,7 +6,7 @@ from studyard.api_client import ApiError
 from studyard.config import Config
 from studyard.engine import Recorder
 from studyard.session import SessionFiles, fail_marker
-from studyard.wavutil import RATE
+from studyard.wavutil import RATE, pcm_to_wav_bytes
 
 
 class FakeApi:
@@ -27,6 +27,13 @@ class FakeApi:
         if not self.summarize_ok:
             raise ApiError("sum")
         return "resumo ok"
+
+
+def _asr(api: FakeApi):
+    def run(pcm):
+        return api.transcribe(pcm_to_wav_bytes(np.asarray(pcm)))
+
+    return run
 
 
 def _cfg(tmp_path: Path, **kw) -> Config:
@@ -54,7 +61,7 @@ def _session(tmp_path: Path, save_audio: bool = False) -> SessionFiles:
 def test_three_failures_write_marker_and_continue(tmp_path: Path):
     api = FakeApi()
     api.fail_next = 3
-    rec = Recorder(_cfg(tmp_path), _session(tmp_path), api)
+    rec = Recorder(_cfg(tmp_path), _session(tmp_path), api, asr=_asr(api))
     rec.process_chunk(np.zeros(RATE, dtype=np.float32), elapsed_s=125)
     body = rec.session.read_transcript_body()
     assert fail_marker(125) in body
@@ -66,7 +73,7 @@ def test_three_failures_write_marker_and_continue(tmp_path: Path):
 def test_stop_success_writes_resumo_deletes_wav(tmp_path: Path):
     api = FakeApi()
     s = _session(tmp_path, save_audio=False)
-    rec = Recorder(_cfg(tmp_path), s, api)
+    rec = Recorder(_cfg(tmp_path), s, api, asr=_asr(api))
     rec.process_chunk(np.zeros(RATE, dtype=np.float32), elapsed_s=1)
     rec.stop()
     assert s.resumo_path.exists()
@@ -78,7 +85,7 @@ def test_stop_offline_writes_pending_keeps_wav(tmp_path: Path):
     api = FakeApi()
     api.fail_next = 100
     s = _session(tmp_path)
-    rec = Recorder(_cfg(tmp_path), s, api)
+    rec = Recorder(_cfg(tmp_path), s, api, asr=_asr(api))
     rec.process_chunk(np.zeros(RATE, dtype=np.float32), elapsed_s=1)
     rec.stop()
     assert s.pending_path.exists()
@@ -96,7 +103,7 @@ def test_stop_after_failures_retranscribes_wav(tmp_path: Path):
 
     api = RetranscribeApi()
     s = _session(tmp_path)
-    rec = Recorder(_cfg(tmp_path), s, api)
+    rec = Recorder(_cfg(tmp_path), s, api, asr=_asr(api))
     rec.process_chunk(np.zeros(RATE, dtype=np.float32), elapsed_s=1)
     rec.stop()
     assert rec.session.read_transcript_body().strip() == api.full_wav_text
@@ -107,7 +114,7 @@ def test_summarize_fail_keeps_aula_pending_summarize(tmp_path: Path):
     api = FakeApi()
     api.summarize_ok = False
     s = _session(tmp_path)
-    rec = Recorder(_cfg(tmp_path), s, api)
+    rec = Recorder(_cfg(tmp_path), s, api, asr=_asr(api))
     rec.process_chunk(np.zeros(RATE, dtype=np.float32), elapsed_s=1)
     rec.stop()
     assert "chunk-" in s.read_transcript_body()

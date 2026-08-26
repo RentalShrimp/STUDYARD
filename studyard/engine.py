@@ -7,7 +7,8 @@ import numpy as np
 from studyard.api_client import ApiError
 from studyard.config import Config
 from studyard.session import SessionFiles, fail_marker
-from studyard.wavutil import RATE, pcm_to_wav_bytes
+from studyard.wavutil import RATE
+from studyard.whisper_service import TranscribeError, transcribe_float32
 
 
 class Recorder:
@@ -17,10 +18,12 @@ class Recorder:
         session: SessionFiles,
         api,
         clock=time.monotonic,
+        asr=None,
     ):
         self.cfg = cfg
         self.session = session
         self.api = api
+        self.asr = asr
         self.clock = clock
         self.had_chunk_failure = False
         self.status = "recording"
@@ -45,6 +48,15 @@ class Recorder:
             self._buf = self._buf[self._chunk_samples :]
             self.process_chunk(piece, self._elapsed_s(), already_appended=True)
 
+    def _transcribe(self, pcm: np.ndarray) -> str:
+        if self.asr is not None:
+            return self.asr(pcm)
+        return transcribe_float32(
+            pcm,
+            language=self.cfg.language,
+            model_size=self.cfg.whisper_model,
+        )
+
     def process_chunk(
         self,
         pcm: np.ndarray,
@@ -54,22 +66,22 @@ class Recorder:
         if not already_appended:
             self.session.append_pcm(pcm)
         self.status = "transcribing"
-        wav_bytes = pcm_to_wav_bytes(pcm)
-        last_err: ApiError | None = None
+        last_err: Exception | None = None
         for attempt in range(3):
             try:
-                text = self.api.transcribe(wav_bytes)
-                self.last_text = text
-                self.session.append_transcript(text)
+                text = self._transcribe(pcm)
+                if text:
+                    self.last_text = text
+                    self.session.append_transcript(text)
                 self.offline = False
                 self.status = "recording"
                 return
-            except ApiError as exc:
+            except (ApiError, TranscribeError) as exc:
                 last_err = exc
         self.had_chunk_failure = True
         self.offline = True
         self.status = "offline"
-        self.message = str(last_err) if last_err else "API indisponível"
+        self.message = str(last_err) if last_err else "transcrição indisponível"
         self.session.append_transcript(fail_marker(elapsed_s))
 
     def stop(self) -> dict:
@@ -86,12 +98,12 @@ class Recorder:
     def _recover_or_pending(self) -> dict:
         try:
             self.status = "transcribing"
-            text = self.api.transcribe(self.session.wav_bytes())
+            text = self._transcribe(self.session._pcm)
             self.session.replace_body(text)
             self.last_text = text
             self.had_chunk_failure = False
             return self._summarize_or_pending(need_transcribe=False)
-        except ApiError as exc:
+        except (ApiError, TranscribeError) as exc:
             self.offline = True
             self.status = "offline"
             self.message = str(exc)

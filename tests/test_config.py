@@ -16,6 +16,7 @@ def test_defaults_when_file_has_only_api(tmp_path: Path):
     assert cfg.language == "pt"
     assert cfg.chunk_seconds == 25
     assert cfg.save_audio is False
+    assert cfg.whisper_model == "base"
     assert cfg.port == 8765
     assert record_errors(cfg) == []
 

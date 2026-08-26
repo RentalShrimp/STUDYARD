@@ -114,7 +114,7 @@ Se o resumo falhar mas a transcrição estiver ok: `*_aula.md` permanece; pendê
 
 ## Contrato da API
 
-Transcrição: `POST {api_base_url}/v1/audio/transcriptions` (multipart, modelo e `language` do JSON).
+Transcrição: **faster-whisper local** (modelo `base` na CPU, `language` do JSON, padrão `pt`). O áudio da aula **não** vai para a API. Resumo: `POST {api_base_url}/v1/chat/completions`.
 
 Resumo: `POST {api_base_url}/v1/chat/completions` com a transcrição completa e um system prompt fixo: produzir Markdown de estudo em português (estrutura, definições, ênfases), sem inventar conteúdo que não esteja na transcrição. Ignorar linhas `[trecho … não transcrito]` se ainda existirem.
 
