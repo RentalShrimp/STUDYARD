@@ -18,6 +18,10 @@ Não versione `config.json` (já está no `.gitignore`).
 
 ## Como rodar
 
+Dê dois cliques em `iniciar.bat` na raiz do projeto (abre o servidor e o navegador em `http://127.0.0.1:8765`).
+
+Ou no terminal:
+
 ```powershell
 cd D:\IA\STUDYARD
 python -m venv .venv
@@ -25,8 +29,6 @@ python -m venv .venv
 pip install -e ".[dev]"
 python -m studyard
 ```
-
-Abra `http://127.0.0.1:8765` (porta em `config.json`).
 
 Arquivos gerados:
 
