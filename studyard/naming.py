@@ -12,6 +12,14 @@ def _occupied(folder: Path, stem: str) -> bool:
     return (folder / f"{stem}.md").exists() or (folder / f"{stem}.wav").exists()
 
 
+def resumo_stem(aula_stem: str) -> str:
+    if "_aula-" in aula_stem:
+        return aula_stem.replace("_aula-", "_resumo-", 1)
+    if aula_stem.endswith("_aula"):
+        return aula_stem[: -len("_aula")] + "_resumo"
+    raise ValueError(f"stem de aula inválido: {aula_stem}")
+
+
 def next_stem(day_folder: Path, day: date) -> str:
     iso = day.isoformat()
     first = f"{iso}_aula"
