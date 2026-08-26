@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>STUDYARD</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main>
+    <h1>STUDYARD</h1>
+    <p class="lede">Grava a aula, escreve a transcrição ao vivo e o resumo no fim.</p>
+
+    <fieldset>
+      <legend>Fonte de áudio</legend>
+      <label><input type="radio" name="source" value="mic" checked /> Microfone</label>
+      <label><input type="radio" name="source" value="system" /> Áudio do sistema</label>
+      <label><input type="radio" name="source" value="both" /> Ambos</label>
+    </fieldset>
+
+    <label class="check">
+      <input type="checkbox" id="save-audio" />
+      Salvar áudio WAV (desligado por padrão)
+    </label>
+
+    <div class="actions">
+      <button type="button" id="btn-start">Gravar</button>
+      <button type="button" id="btn-stop" disabled>Parar</button>
+    </div>
+
+    <section class="panel">
+      <h2>Status</h2>
+      <p id="status">ocioso</p>
+      <p id="message"></p>
+      <p><strong>Pasta:</strong> <span id="folder">—</span></p>
+      <p><strong>Aula:</strong> <span id="aula">—</span></p>
+      <p><strong>Resumo:</strong> <span id="resumo">—</span></p>
+      <p><strong>Último trecho:</strong></p>
+      <pre id="last-text"></pre>
+    </section>
+
+    <section class="panel">
+      <h2>Pendentes</h2>
+      <ul id="pendings"></ul>
+      <button type="button" id="btn-pendings">Processar pendentes</button>
+    </section>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>
