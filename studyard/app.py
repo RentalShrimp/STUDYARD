@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from studyard.api_client import ApiClient
 from studyard.capture import AudioCapture, CaptureError
-from studyard.config import CONFIG_PATH, Config, load_config, record_errors
+from studyard.config import CONFIG_PATH, Config, load_config, record_errors, summarize_errors
 from studyard.engine import Recorder
 from studyard.naming import day_dir, next_stem
 from studyard.pending import process_pending_item, scan_pendings
@@ -124,6 +124,9 @@ def create_app(
         cfg = _load()
         errs = record_errors(cfg)
         if errs:
+            with state.lock:
+                state.status = "error"
+                state.message = " · ".join(errs)
             return JSONResponse({"errors": errs}, status_code=400)
         with state.lock:
             if state.recording:
@@ -140,6 +143,8 @@ def create_app(
                 capture = make_capture()
                 capture.start(body.source)
             except CaptureError as exc:
+                state.status = "error"
+                state.message = str(exc)
                 return JSONResponse({"errors": [str(exc)]}, status_code=400)
             state.cfg = cfg
             state.recorder = recorder
@@ -195,7 +200,7 @@ def create_app(
     @app.post("/api/process-pendings")
     def process_all():
         cfg = _load()
-        errs = record_errors(cfg)
+        errs = summarize_errors(cfg)
         if errs:
             return JSONResponse({"errors": errs}, status_code=400)
         with state.lock:

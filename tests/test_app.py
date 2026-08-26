@@ -5,6 +5,7 @@ import numpy as np
 from fastapi.testclient import TestClient
 
 from studyard.app import create_app
+from studyard.capture import CaptureError
 from studyard.wavutil import RATE
 
 
@@ -64,11 +65,47 @@ def test_status_has_no_api_key(tmp_path: Path):
     assert "sk-" not in blob
 
 
-def test_start_without_key_rejected(tmp_path: Path):
+def test_start_without_key_allowed(tmp_path: Path):
     client = _client(tmp_path, key="")
     res = client.post("/api/start", json={"source": "mic", "save_audio": False})
+    assert res.status_code == 200
+    assert res.json()["recording"] is True
+    client.post("/api/stop")
+
+
+def test_start_capture_error_stays_on_status(tmp_path: Path):
+    class BoomCapture:
+        def start(self, source):
+            raise CaptureError("microfone WASAPI indisponível")
+
+        def read_chunk(self, seconds):
+            return np.zeros(1, dtype=np.float32)
+
+        def stop(self):
+            pass
+
+    cfg = tmp_path / "config.json"
+    cfg.write_text(
+        json.dumps(
+            {
+                "output_dir": str(tmp_path / "out"),
+                "api_base_url": "",
+                "api_key": "",
+            }
+        ),
+        encoding="utf-8",
+    )
+    app = create_app(
+        cfg_path=cfg,
+        api_factory=lambda c: FakeApi(),
+        capture_factory=lambda: BoomCapture(),
+    )
+    client = TestClient(app)
+    res = client.post("/api/start", json={"source": "mic", "save_audio": False})
     assert res.status_code == 400
-    assert any("api_key" in e for e in res.json()["errors"])
+    status = client.get("/api/status").json()
+    assert "microfone" in status["message"]
+    assert status["state"] == "error"
 
 
 def test_second_start_conflict(tmp_path: Path):

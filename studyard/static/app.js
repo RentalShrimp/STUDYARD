@@ -61,7 +61,9 @@ async function start() {
   });
   const data = await res.json();
   if (!res.ok) {
-    messageEl.textContent = (data.errors || [data.message || "erro"]).join(" · ");
+    const text = (data.errors || [data.message || "erro"]).join(" · ");
+    statusEl.textContent = "erro";
+    messageEl.textContent = text;
     return;
   }
   render(data);

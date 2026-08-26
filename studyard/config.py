@@ -46,12 +46,17 @@ def load_config(path: Path | None = None) -> Config:
 
 def record_errors(cfg: Config) -> list[str]:
     errs: list[str] = []
-    if not cfg.api_base_url:
-        errs.append("api_base_url vazio — ajuste config.json")
-    if not cfg.api_key:
-        errs.append("api_key vazio — ajuste config.json")
     try:
         cfg.output_dir.mkdir(parents=True, exist_ok=True)
     except OSError as exc:
         errs.append(f"output_dir inacessível: {exc}")
+    return errs
+
+
+def summarize_errors(cfg: Config) -> list[str]:
+    errs: list[str] = []
+    if not cfg.api_base_url:
+        errs.append("api_base_url vazio — ajuste config.json")
+    if not cfg.api_key:
+        errs.append("api_key vazio — ajuste config.json")
     return errs
