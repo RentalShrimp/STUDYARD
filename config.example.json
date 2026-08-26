@@ -1,0 +1,11 @@
+{
+  "output_dir": "D:\\IA\\STUDYARD\\transcricao",
+  "api_base_url": "https://api.openai.com/v1",
+  "api_key": "",
+  "transcription_model": "whisper-1",
+  "summary_model": "gpt-4o-mini",
+  "language": "pt",
+  "chunk_seconds": 25,
+  "save_audio": false,
+  "port": 8765
+}
