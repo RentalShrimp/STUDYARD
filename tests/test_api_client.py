@@ -2,7 +2,7 @@ from pathlib import Path
 
 import httpx
 
-from studyard.api_client import ApiClient, ApiError
+from studyard.api_client import ApiClient, ApiError, openai_url
 from studyard.config import Config
 
 
@@ -22,9 +22,21 @@ def _cfg(**kw):
     return Config(**base)
 
 
+def test_openai_url_does_not_double_v1():
+    assert openai_url("http://127.0.0.1:11434/v1", "chat/completions") == (
+        "http://127.0.0.1:11434/v1/chat/completions"
+    )
+    assert openai_url("http://127.0.0.1:11434", "chat/completions") == (
+        "http://127.0.0.1:11434/v1/chat/completions"
+    )
+    assert openai_url("https://api.openai.com/v1/", "v1/chat/completions") == (
+        "https://api.openai.com/v1/chat/completions"
+    )
+
+
 def test_transcribe_posts_multipart():
     def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url.path.endswith("/v1/audio/transcriptions")
+        assert request.url.path == "/v1/audio/transcriptions"
         assert request.headers["authorization"] == "Bearer k"
         return httpx.Response(200, json={"text": "olá aula"})
 
@@ -34,7 +46,7 @@ def test_transcribe_posts_multipart():
 
 def test_summarize_sends_transcript():
     def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url.path.endswith("/v1/chat/completions")
+        assert request.url.path == "/v1/chat/completions"
         return httpx.Response(
             200,
             json={"choices": [{"message": {"content": "# Resumo\n\nok"}}]},

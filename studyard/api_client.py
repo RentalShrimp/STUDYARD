@@ -16,6 +16,20 @@ class ApiError(Exception):
     pass
 
 
+def openai_url(base_url: str, resource: str) -> str:
+    """Join an OpenAI-compatible base with a resource (e.g. chat/completions).
+
+    `api_base_url` may already end with `/v1` (documented convention) or not.
+    """
+    base = base_url.rstrip("/")
+    resource = resource.lstrip("/")
+    if resource.startswith("v1/"):
+        resource = resource[3:]
+    if not base.endswith("/v1"):
+        base = f"{base}/v1"
+    return f"{base}/{resource}"
+
+
 class ApiClient:
     def __init__(self, cfg: Config, http: httpx.Client | None = None):
         self.cfg = cfg
@@ -27,7 +41,7 @@ class ApiClient:
             self.http.close()
 
     def transcribe(self, wav_bytes: bytes) -> str:
-        url = f"{self.cfg.api_base_url}/v1/audio/transcriptions"
+        url = openai_url(self.cfg.api_base_url, "audio/transcriptions")
         files = {"file": ("chunk.wav", wav_bytes, "audio/wav")}
         data = {
             "model": self.cfg.transcription_model,
@@ -47,7 +61,7 @@ class ApiClient:
         return text
 
     def summarize(self, transcript: str) -> str:
-        url = f"{self.cfg.api_base_url}/v1/chat/completions"
+        url = openai_url(self.cfg.api_base_url, "chat/completions")
         body = {
             "model": self.cfg.summary_model,
             "messages": [
