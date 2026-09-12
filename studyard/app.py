@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from studyard.api_client import ApiClient
-from studyard.capture import AudioCapture, CaptureError
+from studyard.capture import AudioCapture, CaptureError, list_capture_devices
 from studyard.config import CONFIG_PATH, Config, load_config, record_errors, summarize_errors
 from studyard.engine import Recorder
 from studyard.naming import day_dir, next_stem
@@ -25,6 +25,8 @@ Source = Literal["mic", "system", "both"]
 class StartBody(BaseModel):
     source: Source = "mic"
     save_audio: bool = False
+    mic_device: str | None = None
+    system_device: str | None = None
 
 
 class AppState:
@@ -94,12 +96,23 @@ def create_app(
             "offline": rec.offline if rec else state.offline,
             "save_audio_default": cfg.save_audio,
             "pendings": pendings,
+            "devices": getattr(state.capture, "labels", None) or [],
         }
 
     @app.get("/api/status")
     def status():
         with state.lock:
             return _status_payload()
+
+    @app.get("/api/devices")
+    def devices():
+        try:
+            return list_capture_devices()
+        except Exception as exc:
+            return JSONResponse(
+                {"errors": [str(exc)], "mics": [], "loopbacks": []},
+                status_code=500,
+            )
 
     def _loop(capture, recorder: Recorder) -> None:
         try:
@@ -141,7 +154,11 @@ def create_app(
             recorder = Recorder(cfg, session, api)
             try:
                 capture = make_capture()
-                capture.start(body.source)
+                capture.start(
+                    body.source,
+                    mic_device=body.mic_device,
+                    system_device=body.system_device,
+                )
             except CaptureError as exc:
                 state.status = "error"
                 state.message = str(exc)
@@ -152,7 +169,10 @@ def create_app(
             state.recording = True
             state.stop_flag.clear()
             state.status = "recording"
-            state.message = ""
+            labels = getattr(capture, "labels", None) or []
+            state.message = (
+                "Capturando: " + "; ".join(labels) if labels else ""
+            )
             state.folder = str(folder)
             state.aula = str(session.aula_path)
             state.resumo = str(session.resumo_path)

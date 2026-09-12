@@ -46,6 +46,7 @@ python -m pytest tests -v
 
 ## Checklist manual
 
-- Microfone só; áudio do sistema (Zoom ou YouTube); ambos
+- Microfone só (entrada P2 e/ou USB); áudio do sistema (Zoom ou YouTube em qualquer alto-falante); ambos
+- Na página: deixe os dispositivos em **Todos**, ou escolha a entrada P2 / o alto-falante; status mostra o que está aberto
 - Status e caminho da pasta na página; Gravar → Parar → arquivos no Explorer
 - Wi‑Fi off no meio → Parar → religar → Processar pendentes

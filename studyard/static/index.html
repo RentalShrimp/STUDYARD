@@ -9,7 +9,7 @@
 <body>
   <main>
     <h1>STUDYARD</h1>
-    <p class="lede">Grava a aula, escreve a transcrição ao vivo e o resumo no fim.</p>
+    <p class="lede">Grava a aula, escreve a transcrição ao vivo e o resumo no fim. A entrada P2 (microfone) e o áudio do sistema entram juntos quando a fonte é “Todos”.</p>
 
     <fieldset>
       <legend>Fonte de áudio</legend>
@@ -17,6 +17,17 @@
       <label><input type="radio" name="source" value="system" /> Áudio do sistema</label>
       <label><input type="radio" name="source" value="both" /> Ambos</label>
     </fieldset>
+
+    <label class="device">Microfone
+      <select id="mic-device">
+        <option value="all">Todos (entrada P2 + USB + array)</option>
+      </select>
+    </label>
+    <label class="device">Áudio do sistema
+      <select id="system-device">
+        <option value="all">Todos os alto-falantes</option>
+      </select>
+    </label>
 
     <label class="check">
       <input type="checkbox" id="save-audio" />

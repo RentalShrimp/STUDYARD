@@ -9,12 +9,44 @@ const btnStart = document.getElementById("btn-start");
 const btnStop = document.getElementById("btn-stop");
 const btnPendings = document.getElementById("btn-pendings");
 const saveAudio = document.getElementById("save-audio");
+const micDevice = document.getElementById("mic-device");
+const systemDevice = document.getElementById("system-device");
 
 let defaultsApplied = false;
 
 function source() {
   const el = document.querySelector('input[name="source"]:checked');
   return el ? el.value : "mic";
+}
+
+function fillSelect(el, items, allLabel) {
+  const current = el.value;
+  el.innerHTML = "";
+  const all = document.createElement("option");
+  all.value = "all";
+  all.textContent = allLabel;
+  el.appendChild(all);
+  for (const item of items) {
+    const opt = document.createElement("option");
+    opt.value = item.name;
+    const tag = item.kind === "analog" ? "entrada P2" : item.kind;
+    opt.textContent = tag ? `${item.name} (${tag})` : item.name;
+    el.appendChild(opt);
+  }
+  if ([...el.options].some((o) => o.value === current)) {
+    el.value = current;
+  }
+}
+
+async function loadDevices() {
+  try {
+    const res = await fetch("/api/devices");
+    const data = await res.json();
+    fillSelect(micDevice, data.mics || [], "Todos (entrada P2 + USB + array)");
+    fillSelect(systemDevice, data.loopbacks || [], "Todos os alto-falantes");
+  } catch (err) {
+    /* lista de dispositivos é opcional; Gravar ainda funciona */
+  }
 }
 
 function render(data) {
@@ -57,6 +89,8 @@ async function start() {
     body: JSON.stringify({
       source: source(),
       save_audio: saveAudio.checked,
+      mic_device: micDevice.value,
+      system_device: systemDevice.value,
     }),
   });
   const data = await res.json();
@@ -88,4 +122,5 @@ btnStart.addEventListener("click", start);
 btnStop.addEventListener("click", stop);
 btnPendings.addEventListener("click", processPendings);
 setInterval(refresh, 1000);
+loadDevices();
 refresh();
