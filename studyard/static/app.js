@@ -104,6 +104,9 @@ async function start() {
 }
 
 async function stop() {
+  btnStop.disabled = true;
+  statusEl.textContent = "stopping";
+  messageEl.textContent = "Finalizando transcrição e gerando resumo — pode levar alguns minutos, não feche.";
   const res = await fetch("/api/stop", { method: "POST" });
   render(await res.json());
 }

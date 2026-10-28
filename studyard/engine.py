@@ -27,6 +27,7 @@ class Recorder:
         self.clock = clock
         self.had_chunk_failure = False
         self.status = "recording"
+        self.stopping = False
         self.last_text = ""
         self.offline = False
         self.message = ""
@@ -74,7 +75,7 @@ class Recorder:
                     self.last_text = text
                     self.session.append_transcript(text)
                 self.offline = False
-                self.status = "recording"
+                self.status = "stopping" if self.stopping else "recording"
                 return
             except (ApiError, TranscribeError) as exc:
                 last_err = exc
@@ -85,6 +86,8 @@ class Recorder:
         self.session.append_transcript(fail_marker(elapsed_s))
 
     def stop(self) -> dict:
+        self.stopping = True
+        self.status = "stopping"
         if self._buf.size:
             leftover = self._buf
             self._buf = np.zeros(0, dtype=np.float32)
@@ -112,8 +115,11 @@ class Recorder:
             return self._paths()
 
     def _summarize_or_pending(self, need_transcribe: bool) -> dict:
+        self.status = "summarizing"
+        # se o app fechar durante o resumo, "Processar pendentes" retoma
+        need = ["transcribe", "summarize"] if need_transcribe else ["summarize"]
+        self.session.write_pending(need)
         try:
-            self.status = "summarizing"
             summary = self.api.summarize(self.session.read_transcript_body())
             self.session.write_summary(summary)
             self.session.clear_pending()
@@ -126,8 +132,6 @@ class Recorder:
             self.offline = True
             self.status = "error"
             self.message = str(exc)
-            need = ["transcribe", "summarize"] if need_transcribe else ["summarize"]
-            self.session.write_pending(need)
             self.session.finalize_audio(success=False)
             return self._paths()
 

@@ -123,3 +123,28 @@ def test_summarize_fail_keeps_aula_pending_summarize(tmp_path: Path):
     assert "summarize" in data
     assert "transcribe" not in data
     assert s.wav_path.exists()
+
+
+def test_pending_exists_while_summarizing(tmp_path: Path):
+    class WatchApi(FakeApi):
+        def summarize(self, transcript: str) -> str:
+            self.pending_during = s.pending_path.exists()
+            self.status_during = rec.status
+            return "resumo ok"
+
+    api = WatchApi()
+    s = _session(tmp_path)
+    rec = Recorder(_cfg(tmp_path), s, api, asr=_asr(api))
+    rec.process_chunk(np.zeros(RATE, dtype=np.float32), elapsed_s=1)
+    rec.stop()
+    assert api.pending_during is True
+    assert api.status_during == "summarizing"
+    assert not s.pending_path.exists()
+
+
+def test_chunk_finished_after_stop_does_not_report_recording(tmp_path: Path):
+    api = FakeApi()
+    rec = Recorder(_cfg(tmp_path), _session(tmp_path), api, asr=_asr(api))
+    rec.stopping = True
+    rec.process_chunk(np.zeros(RATE, dtype=np.float32), elapsed_s=1)
+    assert rec.status == "stopping"

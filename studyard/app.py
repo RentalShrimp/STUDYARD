@@ -82,6 +82,8 @@ def create_app(
                     "need": p["need"],
                 }
                 for p in scan_pendings(cfg.output_dir)
+                # a sessão sendo finalizada não é pendência ainda
+                if not (state.recording and str(p["aula_path"]) == state.aula)
             ]
         except OSError:
             pass
@@ -199,7 +201,8 @@ def create_app(
             except Exception:
                 pass
         if thread is not None:
-            thread.join(timeout=8)
+            # espera o trecho em transcrição terminar, senão roda junto com rec.stop()
+            thread.join(timeout=300)
         paths = rec.stop() if rec else {}
         with state.lock:
             state.recording = False

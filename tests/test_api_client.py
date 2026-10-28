@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import httpx
@@ -66,3 +67,16 @@ def test_http_error_raises():
         raise AssertionError("expected ApiError")
     except ApiError:
         pass
+
+
+def test_summarize_with_num_ctx_uses_ollama_native_api():
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/chat"
+        body = json.loads(request.content)
+        assert body["options"] == {"num_ctx": 32768}
+        assert body["stream"] is False
+        return httpx.Response(200, json={"message": {"content": "# Resumo\n\nok"}})
+
+    cfg = _cfg(api_base_url="http://127.0.0.1:11434/v1", summary_num_ctx=32768)
+    client = ApiClient(cfg, http=httpx.Client(transport=httpx.MockTransport(handler)))
+    assert "ok" in client.summarize("corpo da aula")

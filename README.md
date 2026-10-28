@@ -12,6 +12,7 @@ App local no Windows: grava a aula (microfone e/ou áudio do sistema), escreve a
 
 1. Copie `config.example.json` para `config.json` na raiz deste repositório.
 2. Preencha `api_key` e, se não for OpenAI, `api_base_url` e `summary_model`. A transcrição usa `whisper_model` (padrão `base`) via faster-whisper na CPU.
+   Com Ollama, deixe `summary_num_ctx` (ex.: `32768`): sem ele o Ollama lê só ~4 mil tokens e o resumo de uma aula longa sai só com o final.
 3. `output_dir` padrão: `D:\IA\STUDYARD\transcricao` (pastas `aaaa-mm-dd` por dia de aula).
 
 Não versione `config.json` (já está no `.gitignore`).

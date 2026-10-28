@@ -21,6 +21,8 @@ class Config:
     save_audio: bool
     port: int
     whisper_model: str = "base"
+    # >0: resumo via API nativa do Ollama com esse contexto (o /v1 corta em ~4k tokens)
+    summary_num_ctx: int = 0
 
 
 def load_config(path: Path | None = None) -> Config:
@@ -41,6 +43,7 @@ def load_config(path: Path | None = None) -> Config:
         save_audio=bool(raw.get("save_audio", False)),
         port=int(raw.get("port", 8765)),
         whisper_model=str(raw.get("whisper_model", "base")),
+        summary_num_ctx=int(raw.get("summary_num_ctx", 0)),
     )
 
 

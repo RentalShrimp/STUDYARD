@@ -30,6 +30,14 @@ def openai_url(base_url: str, resource: str) -> str:
     return f"{base}/{resource}"
 
 
+def ollama_url(base_url: str, resource: str) -> str:
+    """Native Ollama endpoint (e.g. api/chat) from a base that may end with `/v1`."""
+    base = base_url.rstrip("/")
+    if base.endswith("/v1"):
+        base = base[:-3]
+    return f"{base}/{resource.lstrip('/')}"
+
+
 class ApiClient:
     def __init__(self, cfg: Config, http: httpx.Client | None = None):
         self.cfg = cfg
@@ -61,27 +69,39 @@ class ApiClient:
         return text
 
     def summarize(self, transcript: str) -> str:
-        url = openai_url(self.cfg.api_base_url, "chat/completions")
-        body = {
-            "model": self.cfg.summary_model,
-            "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": transcript},
-            ],
-        }
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": transcript},
+        ]
+        native = self.cfg.summary_num_ctx > 0
+        if native:
+            url = ollama_url(self.cfg.api_base_url, "api/chat")
+            body = {
+                "model": self.cfg.summary_model,
+                "messages": messages,
+                "stream": False,
+                "options": {"num_ctx": self.cfg.summary_num_ctx},
+            }
+        else:
+            url = openai_url(self.cfg.api_base_url, "chat/completions")
+            body = {"model": self.cfg.summary_model, "messages": messages}
         headers = {
             "Authorization": f"Bearer {self.cfg.api_key}",
             "Content-Type": "application/json",
         }
         try:
-            resp = self.http.post(url, json=body, headers=headers, timeout=180.0)
+            # modelo local com aula longa leva vários minutos
+            resp = self.http.post(url, json=body, headers=headers, timeout=1800.0)
         except httpx.HTTPError as exc:
             raise ApiError(str(exc)) from exc
         if resp.status_code >= 400:
             raise ApiError(f"resumo HTTP {resp.status_code}: {resp.text[:300]}")
         payload = resp.json()
         try:
-            content = payload["choices"][0]["message"]["content"]
+            if native:
+                content = payload["message"]["content"]
+            else:
+                content = payload["choices"][0]["message"]["content"]
         except (KeyError, IndexError, TypeError) as exc:
             raise ApiError("resposta de resumo inválida") from exc
         if not isinstance(content, str):
