@@ -92,6 +92,11 @@ class ApiClient:
         try:
             # modelo local com aula longa leva vários minutos
             resp = self.http.post(url, json=body, headers=headers, timeout=1800.0)
+        except httpx.ConnectError as exc:
+            raise ApiError(
+                f"servidor de resumo fora do ar em {self.cfg.api_base_url} — "
+                "abra o Ollama e use 'processar pendentes'"
+            ) from exc
         except httpx.HTTPError as exc:
             raise ApiError(str(exc)) from exc
         if resp.status_code >= 400:
