@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import numpy as np
@@ -148,3 +149,71 @@ def test_chunk_finished_after_stop_does_not_report_recording(tmp_path: Path):
     rec.stopping = True
     rec.process_chunk(np.zeros(RATE, dtype=np.float32), elapsed_s=1)
     assert rec.status == "stopping"
+
+
+def test_alerts_report_failed_chunk_while_recording(tmp_path: Path):
+    api = FakeApi()
+    api.fail_next = 3
+    rec = Recorder(_cfg(tmp_path), _session(tmp_path), api, asr=_asr(api))
+    rec.process_chunk(np.zeros(RATE, dtype=np.float32), 0)
+    # o alerta continua depois que a transcrição volta: o trecho ainda está perdido
+    rec.process_chunk(np.zeros(RATE, dtype=np.float32), 1)
+    alerts = rec.alerts()
+    assert [a["key"] for a in alerts] == ["transcription"]
+    assert "1 trecho" in alerts[0]["text"]
+    assert "down" in alerts[0]["text"]
+
+
+def test_alerts_report_silence_and_clear_on_speech(tmp_path: Path):
+    now = [0.0]
+    api = FakeApi()
+    rec = Recorder(
+        _cfg(tmp_path), _session(tmp_path), api, clock=lambda: now[0], asr=_asr(api)
+    )
+    now[0] = 119.0
+    assert rec.alerts() == []
+    now[0] = 120.0
+    assert [a["key"] for a in rec.alerts()] == ["silence"]
+    rec.process_chunk(np.zeros(RATE, dtype=np.float32), 120)
+    assert rec.alerts() == []
+
+
+def test_long_transcript_checkpoint_survives_part_failure(tmp_path: Path):
+    class PartsApi(FakeApi):
+        def __init__(self):
+            super().__init__()
+            self.n = 0
+
+        def summarize(self, transcript, **kwargs):
+            self.n += 1
+            if self.n == 1:
+                return "parcial-1"
+            raise ApiError("caiu na segunda parte")
+
+    text = "\n".join(["conteudo da aula sobre filas."] * 800)
+    assert len(text) > 12000
+    api = PartsApi()
+    s = _session(tmp_path)
+    s.append_transcript(text)
+    rec = Recorder(_cfg(tmp_path), s, api, asr=_asr(FakeApi()))
+    rec.stop()
+    path = tmp_path / "2026-08-26_aula.resumo-partes.json"
+    saved = json.loads(path.read_text(encoding="utf-8"))
+    assert saved["parts"] == ["parcial-1"]
+    assert s.pending_path.exists()
+    assert not s.resumo_path.exists()
+
+
+def test_message_warns_not_to_shut_down_while_summarizing(tmp_path: Path):
+    seen = []
+    api = FakeApi()
+    rec = Recorder(_cfg(tmp_path), _session(tmp_path), api, asr=_asr(api))
+    original = api.summarize
+
+    def spy(text):
+        seen.append(rec.message)
+        return original(text)
+
+    api.summarize = spy
+    rec.stop()
+    assert "desligue o PC" in seen[0]

@@ -6,6 +6,7 @@ import numpy as np
 from studyard.api_client import ApiError
 from studyard.pending import process_pending_item, scan_pendings
 from studyard.session import SessionFiles, fail_marker
+from studyard.summarizer import split_blocks, transcript_hash
 from studyard.wavutil import write_wav
 
 
@@ -87,3 +88,37 @@ def test_process_pending_transcribe_and_summarize(tmp_path: Path):
     assert s.resumo_path.exists()
     assert not s.pending_path.exists()
     assert not s.wav_path.exists()
+
+
+def test_process_pending_resumes_checkpoint(tmp_path: Path):
+    day = tmp_path / "2026-08-26"
+    s = SessionFiles(day, "2026-08-26_aula", "mic", save_audio=False)
+    s.create()
+    s.append_transcript("\n".join(["fala de metrica de trafego."] * 800))
+    s.write_pending(["summarize"])
+    body = s.read_transcript_body()
+    assert len(split_blocks(body)) >= 2
+    checkpoint = day / "2026-08-26_aula.resumo-partes.json"
+    checkpoint.write_text(
+        json.dumps(
+            {"transcript_hash": transcript_hash(body), "parts": ["ja foi"]},
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    calls = []
+
+    class Api:
+        def summarize(self, transcript, **kwargs):
+            calls.append(transcript)
+            if transcript.startswith("Junte"):
+                return "final pendente"
+            return "novo"
+
+    process_pending_item(scan_pendings(tmp_path)[0], Api())
+    assert calls
+    assert all(not call.startswith("Parte 1 ") for call in calls)
+    assert any(call.startswith("Parte 2 ") for call in calls)
+    assert s.resumo_path.read_text(encoding="utf-8").startswith("final pendente")
+    assert not checkpoint.exists()
+    assert not s.pending_path.exists()

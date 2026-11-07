@@ -21,7 +21,7 @@ class Config:
     save_audio: bool
     port: int
     whisper_model: str = "base"
-    # >0: resumo via API nativa do Ollama com esse contexto (o /v1 corta em ~4k tokens)
+    # >0: teto de contexto na API nativa do Ollama (cada chamada usa menos, pelo texto)
     summary_num_ctx: int = 0
 
 

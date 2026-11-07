@@ -7,12 +7,15 @@ const lastEl = document.getElementById("last-text");
 const pendingsEl = document.getElementById("pendings");
 const btnStart = document.getElementById("btn-start");
 const btnStop = document.getElementById("btn-stop");
+const btnSkip = document.getElementById("btn-skip");
 const btnPendings = document.getElementById("btn-pendings");
 const saveAudio = document.getElementById("save-audio");
 const micDevice = document.getElementById("mic-device");
 const systemDevice = document.getElementById("system-device");
+const alertsEl = document.getElementById("alerts");
 
 let defaultsApplied = false;
+const notified = new Set();
 
 function source() {
   const el = document.querySelector('input[name="source"]:checked');
@@ -49,15 +52,54 @@ async function loadDevices() {
   }
 }
 
+function showAlerts(alerts) {
+  alertsEl.innerHTML = "";
+  for (const alert of alerts) {
+    const p = document.createElement("p");
+    p.textContent = alert.text;
+    alertsEl.appendChild(p);
+  }
+  alertsEl.hidden = !alerts.length;
+  document.title = alerts.length ? `⚠ (${alerts.length}) STUDYARD` : "STUDYARD";
+  const keys = new Set(alerts.map((a) => a.key));
+  for (const key of [...notified]) {
+    if (!keys.has(key)) notified.delete(key);
+  }
+  for (const alert of alerts) {
+    if (notified.has(alert.key)) continue;
+    notified.add(alert.key);
+    /* notificação do Windows: o aviso chega mesmo com outra janela na frente */
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("STUDYARD", { body: alert.text, tag: alert.key });
+    }
+  }
+}
+
+function formatElapsed(total) {
+  const s = Math.max(0, Math.floor(Number(total) || 0));
+  const m = Math.floor(s / 60);
+  return `${m} min ${s % 60} s`;
+}
+
 function render(data) {
+  showAlerts(data.alerts || []);
   statusEl.textContent = data.state || "ocioso";
-  messageEl.textContent = data.message || "";
+  if (data.state === "summarizing" && data.progress) {
+    const p = data.progress;
+    messageEl.textContent =
+      `Resumindo parte ${p.part} de ${p.parts} — ${p.tokens} tokens — ${formatElapsed(p.elapsed_s)}`;
+  } else {
+    messageEl.textContent = data.message || "";
+  }
   folderEl.textContent = data.folder || "—";
   aulaEl.textContent = data.aula || "—";
   resumoEl.textContent = data.resumo || "—";
   lastEl.textContent = data.last_text || "";
-  btnStart.disabled = !!data.recording;
-  btnStop.disabled = !data.recording;
+  const finishing = !!data.finishing;
+  btnStart.disabled = !!data.recording || finishing;
+  btnStop.disabled = !data.recording || finishing;
+  btnSkip.hidden = data.state !== "summarizing";
+  btnPendings.disabled = finishing || data.state === "summarizing";
   if (!defaultsApplied && typeof data.save_audio_default === "boolean") {
     saveAudio.checked = data.save_audio_default;
     defaultsApplied = true;
@@ -78,11 +120,23 @@ function render(data) {
 }
 
 async function refresh() {
-  const res = await fetch("/api/status");
-  render(await res.json());
+  try {
+    const res = await fetch("/api/status");
+    render(await res.json());
+  } catch (err) {
+    showAlerts([
+      {
+        key: "app-down",
+        text: "O STUDYARD parou de responder: a gravação pode ter sido interrompida. Abra o app de novo.",
+      },
+    ]);
+  }
 }
 
 async function start() {
+  if ("Notification" in window && Notification.permission === "default") {
+    Notification.requestPermission();
+  }
   const res = await fetch("/api/start", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -105,17 +159,40 @@ async function start() {
 
 async function stop() {
   btnStop.disabled = true;
+  btnStart.disabled = true;
   statusEl.textContent = "stopping";
-  messageEl.textContent = "Finalizando transcrição e gerando resumo — pode levar alguns minutos, não feche.";
+  messageEl.textContent = "Finalizando transcrição — o resumo começa em seguida.";
   const res = await fetch("/api/stop", { method: "POST" });
-  render(await res.json());
+  const data = await res.json();
+  if (res.status === 409) {
+    await refresh();
+    return;
+  }
+  render(data);
+}
+
+async function skipSummary() {
+  btnSkip.disabled = true;
+  const res = await fetch("/api/skip-summary", { method: "POST" });
+  const data = await res.json();
+  if (res.status === 409) {
+    await refresh();
+    return;
+  }
+  render(data);
 }
 
 async function processPendings() {
+  btnPendings.disabled = true;
   const res = await fetch("/api/process-pendings", { method: "POST" });
   const data = await res.json();
+  if (res.status === 409) {
+    await refresh();
+    return;
+  }
   if (!res.ok) {
     messageEl.textContent = (data.errors || [data.message || "erro"]).join(" · ");
+    btnPendings.disabled = false;
     return;
   }
   render(data);
@@ -123,6 +200,7 @@ async function processPendings() {
 
 btnStart.addEventListener("click", start);
 btnStop.addEventListener("click", stop);
+btnSkip.addEventListener("click", skipSummary);
 btnPendings.addEventListener("click", processPendings);
 setInterval(refresh, 1000);
 loadDevices();
