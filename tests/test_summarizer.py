@@ -142,5 +142,7 @@ def test_final_prompt_asks_for_topics_not_numbered_parts():
     final = api.calls[-1]
     assert final.startswith("Junte")
     assert "Organize por assunto" in final
+    # juntar não pode cortar datas e tarefas combinadas na aula
+    assert "não encurte" in final and "datas" in final
     assert "### Parte" not in final
     assert "resumo A" in final and "resumo B" in final
