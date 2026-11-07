@@ -134,3 +134,13 @@ def test_cancel_before_start_does_not_call_the_model(tmp_path: Path):
     except SummaryCancelled:
         pass
     assert api.calls == []
+
+
+def test_final_prompt_asks_for_topics_not_numbered_parts():
+    api = ScriptApi(["resumo A", "resumo B", "resumo C", "final"])
+    summarize_text(api, _lecture(), block_chars=120)
+    final = api.calls[-1]
+    assert final.startswith("Junte")
+    assert "Organize por assunto" in final
+    assert "### Parte" not in final
+    assert "resumo A" in final and "resumo B" in final

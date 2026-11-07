@@ -146,10 +146,14 @@ def _part_prompt(i: int, n: int, block: str) -> str:
 
 
 def _final_prompt(parts: list[str]) -> str:
-    body = "\n\n".join(f"### Parte {i}\n{text}" for i, text in enumerate(parts, 1))
+    # sem "Parte N" na entrada: com títulos numerados o modelo só empilha as partes
+    body = "\n\n---\n\n".join(parts)
     return (
-        "Junte os resumos parciais abaixo num único resumo da aula em Markdown, "
-        "em português. Não invente conteúdo. "
+        "Junte os resumos parciais abaixo, em ordem cronológica, num único resumo "
+        "da aula em Markdown, em português. Organize por assunto, não por parte: "
+        "agrupe o que aparece em mais de um trecho e não use títulos como "
+        "\"Parte 1\". Destaque tópicos, definições, exemplos e ênfases do professor. "
+        "Não invente conteúdo. "
         "Ignore marcadores do tipo [trecho ~mm:ss não transcrito].\n\n"
         f"{body}"
     )
