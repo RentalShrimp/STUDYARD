@@ -11,6 +11,8 @@
     <h1>STUDYARD</h1>
     <p class="lede">Grava a aula, escreve a transcrição ao vivo e o resumo no fim. A entrada P2 (microfone) e o áudio do sistema entram juntos quando a fonte é “Todos”.</p>
 
+    <div id="alerts" role="alert" hidden></div>
+
     <fieldset>
       <legend>Fonte de áudio</legend>
       <label><input type="radio" name="source" value="mic" checked /> Microfone</label>
@@ -37,6 +39,7 @@
     <div class="actions">
       <button type="button" id="btn-start">Gravar</button>
       <button type="button" id="btn-stop" disabled>Parar</button>
+      <button type="button" id="btn-skip" hidden>Resumir depois</button>
     </div>
 
     <section class="panel">
