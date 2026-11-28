@@ -1,0 +1,7 @@
+{
+  "need": [
+    "transcribe",
+    "summarize"
+  ],
+  "save_audio": false
+}
